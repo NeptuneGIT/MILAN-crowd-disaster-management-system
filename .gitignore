@@ -1,0 +1,3 @@
+# Secrets. Only the *.example files are committed.
+.env
+dart-defines.json

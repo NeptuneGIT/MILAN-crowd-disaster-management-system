@@ -1,0 +1,57 @@
+{
+  "A": -44.85392567632617,
+  "n": 1.6089161249525314,
+  "pocket_loss": 5.083333333333333,
+  "sigma_open": 3.7064999999999997,
+  "sigma_run": 3.4285867007240483,
+  "hear": {
+    "held": {
+      "mean": 0.16892361111111112,
+      "a": 14.161207404831142,
+      "b": 69.67081176457006,
+      "heard_per_window": 13.51388888888889
+    },
+    "pocket": {
+      "mean": 0.09535416666666667,
+      "a": 1.8582128137972467,
+      "b": 17.62927135973735,
+      "heard_per_window": 7.625
+    }
+  },
+  "min_rssi_seen": -97.0,
+  "B": -59.07376590246862,
+  "Lmax": 41.556685724622874,
+  "k0": 12.649999999999997,
+  "sigma_body": 4.4478,
+  "sigma_run_body": 5.136441476971265,
+  "variant": "fitted",
+  "lmax_cap": null,
+  "w": 0.5,
+  "sensitivity_dbm": -97.0,
+  "p_pocket": 0.7,
+  "p_empty": 0.15,
+  "window_s": 10.0,
+  "adverts_per_window": 80,
+  "d_range": [
+    0.5,
+    30.0
+  ],
+  "rho_range": [
+    0.5,
+    5.0
+  ],
+  "body_exclude": [
+    "B14",
+    "B17",
+    "B18",
+    "B21"
+  ],
+  "seed": 1,
+  "assumed": [
+    "w",
+    "sensitivity_dbm",
+    "p_pocket",
+    "p_empty",
+    "rho_range"
+  ]
+}

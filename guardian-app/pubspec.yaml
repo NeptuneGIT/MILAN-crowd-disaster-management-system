@@ -1,0 +1,40 @@
+name: lostfound
+description: "MILAN: Bluetooth lost-and-found phone app (dependents, camps, always-on scanner)."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  supabase_flutter: ^2.15.4
+  flutter_blue_plus: ^2.3.14
+  flutter_foreground_task: ^9.2.2
+  geolocator: ^14.0.2
+  # Pinned: 13.x pulls permission_handler_android 14.x, which needs AGP 9 / compileSdk 37.
+  permission_handler: 12.0.1
+  url_launcher: ^6.3.2
+  shared_preferences: ^2.5.3
+  flutter_riverpod: ^3.3.2
+  # Field-test panel (debug screen):
+  path_provider: ^2.1.5
+  share_plus: ^12.0.2
+  vibration: ^3.1.8
+  device_info_plus: ^12.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  # The field-test run sheets (debug screen only).
+  assets:
+    - assets/field-test/rssi-open-field-sheet.csv
+    - assets/field-test/rssi-body-stacking-sheet.csv

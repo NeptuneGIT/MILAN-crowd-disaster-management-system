@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MILAN crowd simulator</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Crect x='4' y='4' width='88' height='88' rx='20' fill='%23ec9533'/%3E%3Cg transform='translate(16.3 16.3) scale(.66)'%3E%3Ccircle cx='26' cy='20' r='9' fill='%232b1600'/%3E%3Ccircle cx='70' cy='20' r='9' fill='%23fff3e0'/%3E%3Cg fill='none' stroke='%232b1600' stroke-width='9' stroke-linecap='round'%3E%3Cpath d='M26 38V82M70 38V82'/%3E%3Cpath d='M26 50Q48 74 70 50'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F2EA;--card:#FFFCF6;--soft:#F0EADF;--line:#DCD2C4;--tx:#1F1A14;--mut:#5B5249;
+  --ink:#2B1600;--hdr:#EE8A1E;--o1:#FDE6C8;--o2:#F9CE97;--o3:#F5AE5C;--o4:#EC9533;
+  --ac:#B85A00;--acbg:#FDE6C8;--good:#2B1600;--warn:#5B5249;--bad:#8E2417;--vio:#5B5249;
+  --cv:#2B1600;--r:16px
+}
+*{box-sizing:border-box}
+body{margin:0;background-color:var(--bg);background-image:radial-gradient(rgba(120,60,0,.09) 1px,transparent 1.3px);background-size:16px 16px;color:var(--tx);font:15px/1.5 'Atkinson Hyperlegible',system-ui,-apple-system,"Segoe UI",sans-serif;padding:0 0 56px}
+.hdr{background:var(--hdr);color:var(--ink);--acc:#FFF3E0;display:flex;align-items:center;gap:12px;padding:14px 24px}
+.hdr svg{display:block}.hdr b{font-size:22px;letter-spacing:.14em}.hdr span{font-size:16px;font-weight:700}
+.page{max-width:1320px;margin:0 auto;padding:24px 16px 0}
+h1{font-size:26px;margin:0 0 6px;font-weight:700;color:var(--ink)}
+h2{font-size:17px;margin:0 0 2px;font-weight:700;color:var(--ink)}
+.sub{color:var(--mut);margin:0 0 18px;max-width:900px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.cap{color:var(--mut);font-size:13px;margin:0 0 12px}
+button{background:var(--card);color:var(--ink);border:1.5px solid var(--ink);border-radius:10px;padding:7px 13px;cursor:pointer;font:inherit;font-size:14px;font-weight:700}
+button:hover{background:var(--o1)}
+button[aria-pressed=true],button.on{background:var(--o1);border-color:var(--ink)}
+button.pri{background:var(--o4);color:var(--ink);border-color:var(--o4)}
+button.pri:hover{background:var(--o3);border-color:var(--o3)}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible,summary:focus-visible,select:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+
+.goal{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between;margin-bottom:16px;border-color:var(--o2);background:var(--o1)}
+.goal h2{font-size:20px}.goal p{margin:2px 0 0;color:var(--mut)}
+.goal .res{font-size:15px;max-width:560px}
+.goal .res b{font-size:24px;display:block;line-height:1.2}
+.pill{display:inline-block;font-size:13px;font-weight:700;border-radius:999px;padding:4px 12px;margin-right:8px;vertical-align:3px}
+.pill.ok{background:var(--ink);color:#fff}.pill.no{background:#F4E4DF;color:#5E140B}.pill.wait{background:var(--soft);color:var(--mut)}
+
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.stack{display:grid;gap:16px;min-width:0}
+#ctl{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;padding:16px}
+@media(max-width:1000px){.wrap{grid-template-columns:1fr}#ctl{position:static;max-height:none}}
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+@media(max-width:700px){.chips{grid-template-columns:1fr}}
+.chip{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--soft)}
+.chip small{display:block;color:var(--mut);font-size:13px}.chip b{font-size:26px;line-height:1.2;font-variant-numeric:tabular-nums}.chip span{display:block;color:var(--mut);font-size:13px}
+.stages{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
+@media(max-width:700px){.stages{grid-template-columns:repeat(2,1fr)}}
+.stages button{display:flex;flex-direction:column;align-items:flex-start;padding:7px 10px;text-align:left;border-color:var(--line)}
+.stages button b{font-size:12px;color:var(--mut)}.stages button span{font-size:14px}
+.stages button.on{background:var(--o2);border-color:var(--ink)}.stages button.on b{color:var(--ink)}
+canvas{width:100%;height:auto;display:block;border-radius:12px}
+#cv{background:var(--cv);cursor:crosshair}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}.bar .sp{flex:1}
+.story{margin-top:12px;background:var(--o1);border-radius:12px;padding:10px 12px}
+.story b{display:block;margin-bottom:2px;color:var(--ink)}.story p{margin:0;color:var(--tx)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;color:var(--mut);font-size:13px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.fn{list-style:none;margin:0;padding:0}
+.fn li{padding:9px 0;border-top:1px solid var(--line)}
+.fn li:first-child{border-top:0}
+.fn .hd{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.fn .hd span{font-weight:700}.fn .hd b{font-variant-numeric:tabular-nums}.fn .hd em{font-style:normal;color:var(--mut);font-size:13px;margin-left:6px;font-weight:400}
+.fn .tr{height:8px;border-radius:4px;background:var(--soft);margin:6px 0 4px;overflow:hidden}.fn .tr i{display:block;height:100%;border-radius:4px;transition:width .25s}
+.fn p{margin:0;color:var(--mut);font-size:13px}
+.sel{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:700px){.sel{grid-template-columns:repeat(2,1fr)}}
+.sel div{background:var(--soft);border-radius:10px;padding:8px 10px}.sel small{color:var(--mut);display:block;font-size:13px}.sel b{font-size:20px;font-variant-numeric:tabular-nums}
+
+.grp{margin:18px 0 2px;font-size:13px;color:var(--ink);font-weight:700;border-bottom:2px solid var(--o3);padding-bottom:3px}
+.row{padding:10px 0;border-top:1px solid var(--line)}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.top label{font-weight:700;font-size:14px}
+.top b{color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;margin:8px 0 2px;accent-color:var(--o4)}
+.meta{display:flex;align-items:center;gap:8px}
+.tag{font-size:12px;border-radius:99px;padding:0 9px;font-weight:700;border:1px solid var(--ink);line-height:19px}
+.tag.src{background:var(--ink);color:#fff}.tag.app{background:var(--soft);color:var(--ink)}.tag.mod{background:var(--soft);color:var(--ink)}.tag.ass{background:var(--o1);color:var(--ink);border-color:var(--o4)}
+.why{background:none;border:0;padding:0;color:var(--mut);font-size:13px;font-weight:400;text-decoration:underline;text-underline-offset:2px}
+.why:hover{background:none}
+.row p{margin:6px 0 0;color:var(--mut);font-size:13px}
+.qs{display:flex;gap:6px;flex-wrap:wrap}
+.key{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 4px}
+details{margin-top:16px}
+summary{cursor:pointer;color:var(--ink);font-weight:700}
+details ul,details ol{color:var(--mut);padding-left:20px}
+li{margin:4px 0}
+a{color:var(--ac)}
+table{border-collapse:collapse;width:100%;max-width:640px;margin:8px 0}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;font-variant-numeric:tabular-nums}
+th{color:var(--mut);font-size:13px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="mJ" viewBox="0 0 96 96"><circle cx="26" cy="20" r="9" fill="currentColor"/><circle cx="70" cy="20" r="9" fill="var(--acc)"/><g fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round"><path d="M26 38V82M70 38V82"/><path d="M26 50Q48 74 70 50"/></g></symbol></defs></svg>
+<header class="hdr"><svg width="34" height="34" viewBox="0 0 96 96" aria-hidden="true"><use href="#mJ"/></svg><b>MILAN</b><span>Crowd simulator</span></header>
+<div class="page">
+<h1>Kumbh crowd simulator: dots, wristbands and phones</h1>
+<p class="sub">A zoomed-in patch of the mela where every dot is one person, to scale. Step through the story, then press <b>Run time</b> in step 5 to watch the crowd move and the first sightings of flagged wristbands arrive. Change a control and a new random crowd is generated.</p>
+
+<div class="card goal" id="goal">
+  <div><h2>Goal: 99% of wristbands located within 90 minutes</h2><p>Every default is set to the pessimistic end of its plausible range. Only the share of phones with the app was tuned, until this goal was just met.</p></div>
+  <div class="res" id="goalRes"></div>
+</div>
+
+<div class="wrap">
+ <div class="stack">
+  <div class="card">
+    <div class="chips">
+      <div class="chip"><small id="cThisL">This crowd: located so far</small><b id="cThis">-</b><span id="cThisN"></span></div>
+      <div class="chip"><small>What the maths predicts</small><b id="cModel">-</b><span id="cModelN">Closed-form estimate at the same time</span></div>
+      <div class="chip"><small>Average over random crowds</small><b id="cAvg">-</b><span id="cAvgN">Press "Run 6 crowds"</span></div>
+    </div>
+    <div class="stages" id="stages"></div>
+    <canvas id="cv"></canvas>
+    <div class="legend" id="legend"></div>
+    <div class="story"><b id="stTitle"></b><p id="stText"></p></div>
+    <div class="bar">
+      <button id="prev">◀ Back</button><button id="next" class="pri">Next ▶</button>
+      <button id="run">▶ Run time</button>
+      <span class="sp"></span>
+      <label style="font-size:12.5px;color:var(--mut)">Speed <select id="spd" style="font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:var(--card);color:var(--tx)"><option value="1">1 min/s</option><option value="3" selected>3 min/s</option><option value="10">10 min/s</option><option value="30">30 min/s</option></select></label>
+      <button id="again" title="Same settings, new random positions">↻ New crowd</button>
+      <button id="many" title="Simulates 6 random crowds one after another and averages them">Run 6 crowds</button>
+    </div>
+    <p class="cap" style="margin:10px 0 0">Hover a wristband to see its range and which phones can hear it; click to pin it. Arrow keys step through the story.</p>
+  </div>
+
+  <div class="card">
+    <h2>Share of wristbands located over time</h2>
+    <p class="cap">The solid line is this simulated crowd; the dashed line is the closed-form estimate; the shaded band is the spread over the random crowds once you run them. The dashed cross marks the goal: 99% at 90 minutes. The grey line is the ceiling set by bands that work and stay on.</p>
+    <canvas id="cTime" role="img" aria-label="Share of flagged bands located against minutes"></canvas>
+    <p class="cap" id="cTimeRead" style="margin:8px 0 0;min-height:1.5em"></p>
+  </div>
+
+  <div class="card">
+    <h2>Selected wristband</h2>
+    <p class="cap" id="selWhy"></p>
+    <div class="sel">
+      <div><small>App phones that could ever hear it</small><b id="sIn">-</b></div>
+      <div><small>In range right now</small><b id="sNow">-</b></div>
+      <div><small>First sighting at</small><b id="sLoc">-</b></div>
+      <div><small>Outcome</small><b id="sOut">-</b></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>From crowd to located wristbands</h2>
+    <p class="cap">Counts for this crowd.</p>
+    <ol class="fn" id="fn"></ol>
+  </div>
+ </div>
+
+ <aside class="card" id="ctl">
+   <h2>Controls</h2>
+   <div class="key" id="key"></div>
+   <div class="grp">Quick scenarios</div><div class="qs" id="presets"></div>
+ </aside>
+</div>
+
+<details><summary>How the dots map to the maths</summary><ol>
+<li><b>Real scale.</b> The patch is a real piece of the mela (default 80 m × 50 m). Dots = density × area, so the Bluetooth range circle is drawn at true size. A mela-wide crowd would be about 17,000 patches like this one. The crowd wraps around the edges.</li>
+<li><b>Phones.</b> Each person is an active app phone with probability smartphone × Android × installed × scanning. Wristband wearers are not phones (the family is elsewhere). The share of people wearing bands does not change any band's chance of being located.</li>
+<li><b>Movement.</b> Every 10 s round, each person steps in a slowly turning direction. The step size is walking speed (Weidmann speed-density curve: 1.34 m/s free flow, near zero at about 5.4 people/m²) × the "crowd turnover" control. The turnover control stands for relative motion: neighbours in a flowing crowd move together, so only part of walking speed brings new phones into range.</li>
+<li><b>Hearing.</b> Median range is the Bluetooth range control, the same at every density (no link-budget estimate). Each band–phone pair also has its own signal variation (6 dB, drawn from a bell curve and held for 30 s), so some phones hear a band from farther than the median and some do not hear it from closer.</li>
+<li><b>Reporting.</b> Each round, a phone that can hear a band catches it with the catch rate, needs a GPS fix, and uploads with the upload-success probability (which halves at 6 people/m²). The first successful upload is a "located" band.</li>
+<li><b>The defaults</b> are deliberately pessimistic: each is set to the low end of its plausible range (smartphones 40%, scanning 40%, range 4 m, catch rate 40%, turnover 0.15, GPS 70%, upload success 60%). Only the installed share was tuned, until 99% of bands were located within 90 minutes at camp density. Change any control to see how much margin there is.</li>
+<li><b>Located means</b> the server received a position for a flagged band. It excludes the time to flag the dependent, reach them and reunite them. Every band is treated as if flagged missing at time zero.</li>
+<li><b>Closed form.</b> The "maths predicts" figure uses the same chain without simulating individuals; the two agree within about 5 percentage points; the closed form runs a little optimistic under harsh settings like these defaults (about 4 points early on).</li>
+</ol></details>
+
+<details open><summary>Does the goal hold at other crowd densities?</summary>
+<p class="cap" style="margin-top:8px">Median minutes until 99% of wristbands are located, at the default settings (the headless version of this model, 5 to 14 random crowds each). Not live: change a control and press a density scenario to check your own settings.</p>
+<table><thead><tr><th>Crowd density</th><th>Minutes to 99%</th><th>Within 90 min?</th></tr></thead><tbody>
+<tr><td>0.025 / m² (thin outskirts)</td><td>not reached in 400 min</td><td>No</td></tr>
+<tr><td>0.1 / m²</td><td>about 365</td><td>No</td></tr>
+<tr><td>0.25 / m²</td><td>about 149</td><td>No</td></tr>
+<tr><td>0.5 / m² (camp area, the default)</td><td>about 73</td><td>Yes</td></tr>
+<tr><td>1 / m²</td><td>about 39</td><td>Yes</td></tr>
+<tr><td>2 / m² (ghat bank)</td><td>about 25</td><td>Yes</td></tr>
+<tr><td>3 / m²</td><td>about 24</td><td>Yes</td></tr>
+<tr><td>5 / m² (Sangam peak)</td><td>about 60 (slowest 77)</td><td>Yes</td></tr>
+</tbody></table>
+<p class="cap">Sparse areas are the weak spot: with few people around, few app phones pass within range. A denser install base, or a longer range, is what fixes that.</p>
+</details>
+
+<details><summary>Evidence and sources</summary>
+<ul>
+<li><a href="https://www.businesstoday.in/amp/technology/story/aarogya-setu-now-worlds-most-downloaded-covid-19-tracking-app-267276-2020-07-16">Business Today</a>: Aarogya Setu reached 127.6M downloads by July 2020 and about 12.5% adoption among people aged 14+. Downloads, not active use.</li>
+<li><a href="https://www.etvbharat.com/en/!state/uttar-pradesh-prayagraj-mahakumbh-2025-missing-persons-reunited-enn25030203144">ETV Bharat</a>: about 54,000 reunited at Maha Kumbh 2025; 18 child cases reported; mostly women. No reunion times given.</li>
+<li><a href="https://gs.statcounter.com/os-market-share/mobile/india">StatCounter</a>: India, Sept 2026, Android 93.89%.</li>
+<li><a href="https://www.theweek.in/wire-updates/national/2025/09/04/del114-census-ageing.html">The Week, citing SRS 2023</a>: age 0–14 is 24.2%; age 60+ is 9.7%.</li>
+<li><a href="https://telecomtalk.info/jio-700mhz-contributed-broader-coverage-mahakumbh2025-ookla/991260/">TelecomTalk, citing Ookla</a>: Maha Kumbh 5G download speed fell over 40% on a peak day.</li>
+<li>Not found: Kumbh app download numbers, a pilgrim-crowd smartphone share, existing Kumbh reunion times, or any measured Bluetooth range in a dense crowd.</li>
+</ul></details>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const CW=960,CH=600,AR=CH/CW,CAP=40000,ROUND=10,NPL=3,SIG=6,RC=6,AEFF_F=Math.exp(2*(SIG*Math.LN10/(10*NPL))**2);
+const hd=(c,w,h)=>{c.width=w*2;c.height=h*2;const x=c.getContext('2d');x.setTransform(2,0,0,2,0,0);return x};
+const cv=k=>getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+const fmt=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e4?(n/1e3).toFixed(0)+'K':n>=1e3?(n/1e3).toFixed(1)+'K':String(Math.round(n));
+const pct=v=>v>=.9995?'>99.9%':v<.0005?'<0.05%':(v*100).toFixed(v>.99||v<.1?1:0)+'%';
+const pctS=v=>(v*100).toFixed(v<.1?2:v<1?1:0)+'%';
+const mmss=s=>s<60?Math.round(s)+' s':Math.floor(s/60)+' min '+String(Math.round(s%60)).padStart(2,'0')+' s';
+// deterministic per-pair randomness (signal variation held for a time bin)
+const Hh=(a,b,c)=>{let x=Math.imul(a,374761393)^Math.imul(b,668265263)^Math.imul(c,2147483647);x=Math.imul(x^(x>>>15),2246822519);x=Math.imul(x^(x>>>13),3266489917);x^=x>>>16;return(x>>>0)/4294967296};
+const gauss=(a,b,c)=>{const u=Math.max(1e-9,Hh(a,b,c)),v=Hh(a,b,c+7919);return Math.max(-3,Math.min(3,Math.sqrt(-2*Math.log(u))*Math.cos(6.2832*v)))};
+const weid=r=>{if(r<=.05)return 1.34;const x=1/r-1/5.4;return x<=0?.02:1.34*(1-Math.exp(-1.913*x))};
+const upS=(rho,P)=>P.s0/(1+(rho/RC)**2);
+const newFrac=(D,r)=>{if(D>=2*r)return 1;const ov=2*r*r*Math.acos(D/(2*r))-(D/2)*Math.sqrt(4*r*r-D*D);return 1-ov/(Math.PI*r*r)};
+function analytic(rho,n,P){
+  const r=P.r0,A=Math.PI*r*r*AEFF_F,re=Math.sqrt(A/Math.PI),f=newFrac(Math.SQRT2*P.phi*weid(rho)*ROUND,re);
+  const k=1+(n-1)*f,D=rho*P.q*A*k,m=n/k,pr=P.pick*P.gps*upS(rho,P);
+  return P.band*(1-Math.exp(-D*(1-Math.pow(1-pr,m))))
+}
+
+// ---------- controls ----------
+const GOAL=.99,GOAL_MIN=90,MANY=6;
+const TAG={src:'Sourced',app:'From app',ass:'Assumption'};
+const idt=v=>v,per=v=>v/100;
+const cfg=[
+ {id:'d',grp:'The crowd',label:'Crowd density',tag:'ass',min:0,max:100,def:.5,to:v=>.01*Math.pow(500,v/100),inv:x=>100*Math.log(x/.01)/Math.log(500),fmt:v=>v.toFixed(v<.1?3:2)+' people/m²',
+  desc:'People per m² in this patch. Rough guide: about 0.02 thin outskirts, 0.5 camps, 2+ ghat banks, 4–5 Sangam on bathing days. Estimates; I found no measured Kumbh densities. The goal is met from camp density (0.5) upward; thin crowds below about 0.25 take much longer (see the table at the bottom). One source puts injuries as likely at 5/m² and high risk of death at 7/m².'},
+ {id:'w',grp:'The crowd',label:'Minimum patch width',tag:null,min:50,max:120,def:80,to:v=>Math.round(v),fmt:v=>v+' × '+Math.round(v*AR)+' m',
+  desc:'How much ground to show. Height is 62.5% of this. The patch grows automatically if it would otherwise hold fewer than about 40 app phones, up to 40,000 dots. At the pessimistic defaults it always grows.'},
+ {id:'T',grp:'The crowd',label:'Minutes to run',tag:'ass',min:5,max:180,def:90,to:idt,fmt:v=>Math.round(v)+' min',
+  desc:'How long we give the system after the dependent is flagged missing. The goal is 90 minutes. Does not include time before flagging or the walk to the dependent.'},
+ {id:'eld',grp:'Who wears a band',label:'Elderly (60+) share',tag:'src',min:5,max:25,def:9.7,to:per,fmt:v=>(v*100).toFixed(1)+'%',
+  desc:'India-wide share aged 60+ is 9.7% (SRS 2023). Pilgrims probably skew older. Only changes how many bands are drawn.'},
+ {id:'kid',grp:'Who wears a band',label:'Other dependents share (children etc.)',tag:'ass',min:0,max:25,def:4,to:per,fmt:v=>(v*100).toFixed(1)+'%',
+  desc:'No Kumbh age data found. India-wide 0–14 is 24.2%. The 2025 Kumbh reunions I found were mostly adults, with 18 child cases. Only changes how many bands are drawn.'},
+ {id:'carry',grp:'Phones that listen',label:'Carrying a smartphone',tag:'ass',min:20,max:90,def:40,to:per,fmt:v=>(v*100).toFixed(0)+'%',
+  desc:'Share of attendees who carry a smartphone. Unverified for a pilgrim crowd; 45–65% is plausible. Pessimistic default: 40%.'},
+ {id:'andr',grp:'Phones that listen',label:'Of those, Android',tag:'src',min:50,max:100,def:94,to:per,fmt:v=>(v*100).toFixed(0)+'%',
+  desc:'StatCounter, India, Sept 2026: Android 93.89%. The app has no iOS version. This is sourced, so it is not made more pessimistic.'},
+ {id:'inst',grp:'Phones that listen',label:'Android phones with the app installed',tag:'ass',min:0,max:100,def:.015,to:v=>.0005*Math.pow(600,v/100),inv:x=>100*Math.log(x/.0005)/Math.log(600),fmt:v=>pctS(v),
+  desc:'The biggest unknown, and the one value tuned to meet the goal: with everything else pessimistic, about 1.25% installed locates 99% in about 90 minutes, and 1.5% gives some margin (about 73 minutes). Aarogya Setu, a national government-backed app, reached about 12.5% of people aged 14+ in about 3.5 months. A Kumbh-only app may reach 1–5% of phones; a first pilot well under 1%.'},
+ {id:'act',grp:'Phones that listen',label:'Of those, actually scanning',tag:'ass',min:10,max:100,def:40,to:per,fmt:v=>(v*100).toFixed(0)+'%',
+  desc:'Bluetooth on, permissions granted, app not killed by battery savers. No measured value. Pessimistic default: 40%.'},
+ {id:'r0',grp:'Bluetooth',label:'Bluetooth range (median, any density)',tag:'ass',min:0,max:100,def:4,to:v=>.5*Math.pow(60,v/100),inv:x=>100*Math.log(x/.5)/Math.log(60),fmt:v=>(v<10?v.toFixed(1):v.toFixed(0))+' m',
+  desc:'0.5 to 30 m, set directly and held the same at every crowd density; there is no link-budget estimate. A placeholder, not a measurement. Pessimistic default: 4 m. The field test (distance runs, including the body and crowd conditions) is what should set this. This is the most sensitive control: at these defaults 3 m takes about 160 minutes, 4 m about 75, 5 m about 50. Below about 2 m the model is probably optimistic: it checks who is in range every 10 s, but a walking person is within a metre of a band for only a second or two.'},
+ {id:'pick',grp:'Bluetooth',label:'Catch rate per 10 s round',tag:'ass',min:10,max:100,def:40,to:per,fmt:v=>(v*100).toFixed(0)+'%',
+  desc:'Chance an in-range phone registers the band in a round (scan duty cycle, collisions with other Bluetooth devices). No measured value. Pessimistic default: 40%.'},
+ {id:'phi',grp:'Crowd and network',label:'Crowd turnover around a band',tag:'ass',min:.05,max:1.5,def:.15,to:idt,fmt:v=>v.toFixed(2)+' × walking speed',
+  desc:'How much of walking speed becomes movement relative to the band. Near 0 means everyone moves together, so no new phones arrive. A dependent sitting still beside a moving crowd is nearer 1. Pessimistic default: 0.15, a crowd that mostly moves together.'},
+ {id:'gps',grp:'Crowd and network',label:'GPS fix available when needed',tag:'ass',min:30,max:100,def:70,to:per,fmt:v=>(v*100).toFixed(0)+'%',
+  desc:'The app only uploads with a GPS fix under 20 s old. Pessimistic default: 70%.'},
+ {id:'s0',grp:'Crowd and network',label:'Upload success per try (quiet area)',tag:'ass',min:30,max:100,def:60,to:per,fmt:v=>(v*100).toFixed(0)+'%',
+  desc:'Falls with crowd density and halves at 6 people/m². Ookla saw 5G download speed fall over 40% on a Maha Kumbh peak day, but a sighting is only a few hundred bytes. No failure-rate data is published. Pessimistic default: 60%.'},
+ {id:'band',grp:'Crowd and network',label:'Band works and stays on the dependent',tag:'ass',min:50,max:100,def:100,to:per,fmt:v=>(v*100).toFixed(0)+'%',
+  desc:'A ceiling on everything. Dependents can remove wristbands and bands can fail; lower this to see the effect. Default 100%, so that 99% of bands can be located.'},
+];
+const ctl=$('ctl');let lastGrp='';
+cfg.forEach(c=>{
+  if(c.grp!==lastGrp){ctl.insertAdjacentHTML('beforeend',`<div class="grp">${c.grp}</div>`);lastGrp=c.grp}
+  ctl.insertAdjacentHTML('beforeend',`<div class="row"><div class="top"><label for="${c.id}">${c.label}</label><b id="v_${c.id}"></b></div>
+    <input type="range" id="${c.id}" min="${c.min}" max="${c.max}" step="any" value="${c.inv?c.inv(c.def):c.def}">
+    <div class="meta">${c.tag?`<span class="tag ${c.tag}">${TAG[c.tag]}</span>`:''}<button class="why" aria-expanded="false" aria-controls="d_${c.id}">Why this value</button></div>
+    <p id="d_${c.id}" hidden>${c.desc}</p></div>`);
+  $(c.id).oninput=dirty;
+  const b=ctl.querySelector(`[aria-controls="d_${c.id}"]`);
+  b.onclick=()=>{const p=$('d_'+c.id);p.hidden=!p.hidden;b.setAttribute('aria-expanded',String(!p.hidden))};
+});
+$('key').innerHTML=Object.entries(TAG).map(([k,t])=>`<span class="tag ${k}">${t}</span>`).join('');
+$('key').insertAdjacentHTML('afterend','<p class="cap" style="margin:0 0 4px">Tags show where each default comes from. Assumptions are placeholders to test, not facts.</p>');
+const byId=Object.fromEntries(cfg.map(c=>[c.id,c]));
+const setV=(id,val)=>{const c=byId[id];$(id).value=c.inv?c.inv(val):(c.to===per?val*100:val)};
+const resetAll=()=>cfg.forEach(c=>{$(c.id).value=c.inv?c.inv(c.def):c.def});
+[['Thin outskirts · 0.1/m²',{d:.1}],['Camp area · 0.5/m²',{d:.5}],['Ghat bank · 2/m²',{d:2}],['Sangam peak · 5/m²',{d:5}],
+ ['Pilot · 0.5% installed',{inst:.005}],['Strong push · 5%',{inst:.05}],['Range 3 m',{r0:3}],['Range 6 m',{r0:6}],
+ ['Less pessimistic · v3 values',{inst:.01,carry:.5,act:.6,r0:12,pick:.7,phi:.5,gps:.9,s0:.85}],['Reset',{}]].forEach(([t,s])=>{
+  const b=document.createElement('button');b.textContent=t;b.title='Resets every control to its default, then applies this scenario';b.onclick=()=>{resetAll();for(const k in s)setV(k,s[k]);dirty()};$('presets').appendChild(b)});
+function P(){const o={};cfg.forEach(c=>{o[c.id]=(c.to||idt)(+$(c.id).value);$('v_'+c.id).textContent=c.fmt(o[c.id])});o.wf=o.eld+o.kid;o.q=o.carry*o.andr*o.inst*o.act;return o}
+
+// ---------- world ----------
+let p,W,Hm,N,dEff,X,Y,TH,role,ws,ps,nB,nP,seedZ,nRounds,round=0,located,locRound,hist=[],avgCurves=null,sel=0,pin=null,hover=null,curve=[];
+let heardEver,rangeNow,bandOK;let phoneGrid={};
+const randn=()=>{let u=0,v=0;while(!u)u=Math.random();v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(6.2832*v)};
+function setupWorld(){
+  p=P();W=p.w;Hm=W*AR;
+  // enlarge the patch until it holds about 40 app phones (otherwise a sparse, low-adoption patch has none), within the dot cap
+  let area=W*Hm;const need=40/Math.max(1e-9,p.q*p.d);
+  area=Math.max(area,Math.min(need,CAP/p.d));area=Math.min(area,CAP/p.d);
+  W=Math.sqrt(area/AR);Hm=W*AR;
+  N=Math.max(60,Math.round(p.d*W*Hm));dEff=N/(W*Hm);
+  X=new Float32Array(N);Y=new Float32Array(N);TH=new Float32Array(N);
+  const cols=Math.ceil(Math.sqrt(N*W/Hm)),rows=Math.ceil(N/cols),cw=W/cols,ch=Hm/rows,order=[...Array(cols*rows).keys()];
+  for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
+  for(let k=0;k<N;k++){const c=order[k];X[k]=((c%cols)+.15+.7*Math.random())*cw;Y[k]=(Math.floor(c/cols)+.15+.7*Math.random())*ch;TH[k]=Math.random()*6.2832}
+  nB=Math.min(N-1,Math.max(1,Math.round(N*p.wf)));const nE=Math.round(nB*p.eld/p.wf);
+  nP=Math.min(N-nB,Math.round(N*p.q));
+  role=new Uint8Array(N);ws=new Int32Array(nB);ps=new Int32Array(nP);
+  for(let k=0;k<nB;k++){ws[k]=k;role[k]=k<nE?1:2}
+  for(let k=0;k<nP;k++){ps[k]=nB+k;role[nB+k]=3}
+  seedZ=(Math.random()*2**30)|0;nRounds=Math.max(1,Math.round(p.T*60/ROUND));round=0;
+  bandOK=new Uint8Array(nB);for(let k=0;k<nB;k++)bandOK[k]=Math.random()<p.band?1:0;located=new Uint8Array(nB);locRound=new Int32Array(nB);heardEver=new Uint8Array(nB);rangeNow=new Uint16Array(nB);
+  P.cache=geom();
+}
+function geom(){ // per-patch constants
+  const r=p.r0;return{r,Rq:r*Math.pow(10,3*SIG/(10*NPL)),v:weid(dEff),up:upS(dEff,p)}
+}
+// one 10 s round: everyone moves, then every band that is not yet located looks for a phone that can hear it
+function stepRound(){
+  const g=P.cache;round++;
+  for(let i=0;i<N;i++){TH[i]+=randn()*.6;const st=p.phi*g.v*ROUND*(.5+Math.random());
+    X[i]=(X[i]+Math.cos(TH[i])*st+W)%W;Y[i]=(Y[i]+Math.sin(TH[i])*st+Hm)%Hm}
+  buildGrid(g.Rq);
+  const bin=Math.floor(round*ROUND/30);let any=0;
+  for(let a=0;a<nB;a++){
+    const i=ws[a];let now=0,done=located[a];
+    eachNear(i,(j,d)=>{
+      const reach=g.r*Math.pow(10,SIG*gauss(i,j,seedZ+bin)/(10*NPL));
+      if(d>reach)return;now++;heardEver[a]=1;
+      if(!done&&bandOK[a]&&Math.random()<p.pick&&Math.random()<p.gps&&Math.random()<g.up){done=1}
+    });
+    rangeNow[a]=now;if(done&&!located[a]){located[a]=1;locRound[a]=round}
+    if(located[a])any++;
+  }
+  const f=any/nB;curve.push(f);return f;
+}
+function buildGrid(Rq){
+  const gx=Math.max(1,Math.floor(W/Rq)),gy=Math.max(1,Math.floor(Hm/Rq)),cw=W/gx,ch=Hm/gy,heads=new Int32Array(gx*gy).fill(-1),nxt=new Int32Array(N).fill(-1);
+  for(let k=0;k<nP;k++){const i=ps[k],c=Math.min(gy-1,Math.floor(Y[i]/ch))*gx+Math.min(gx-1,Math.floor(X[i]/cw));nxt[i]=heads[c];heads[c]=i}
+  phoneGrid={gx,gy,cw,ch,heads,nxt,Rq};
+}
+function eachNear(i,fn){
+  const G=phoneGrid,cx=Math.min(G.gx-1,Math.floor(X[i]/G.cw)),cy=Math.min(G.gy-1,Math.floor(Y[i]/G.ch));
+  const ax=G.gx>=3?[(cx+G.gx-1)%G.gx,cx,(cx+1)%G.gx]:G.gx===2?[0,1]:[0],ay=G.gy>=3?[(cy+G.gy-1)%G.gy,cy,(cy+1)%G.gy]:G.gy===2?[0,1]:[0];
+  for(const yy of ay)for(const xx of ax)for(let j=G.heads[yy*G.gx+xx];j>=0;j=G.nxt[j]){
+    let dx=X[j]-X[i],dy=Y[j]-Y[i];if(dx>W/2)dx-=W;else if(dx<-W/2)dx+=W;if(dy>Hm/2)dy-=Hm;else if(dy<-Hm/2)dy+=Hm;
+    const d=Math.hypot(dx,dy);if(d<=G.Rq)fn(j,d,dx,dy)}
+}
+// headless: run a full crowd and return the located-fraction curve
+function runHeadless(){
+  setupWorld();const out=[];for(let t=0;t<nRounds;t++)out.push(stepRound());return out;
+}
+function finalize(){
+  hist=[];curve=[];avgCurves=null;
+  let best=1e18;for(let a=0;a<nB;a++){const d=(X[ws[a]]-W/2)**2+(Y[ws[a]]-Hm/2)**2;if(d<best){best=d;sel=a}}pin=null;hover=null;
+  buildGrid(P.cache.Rq);for(let a=0;a<nB;a++){let c=0;eachNear(ws[a],(j,d)=>{if(d<=P.cache.r)c++});rangeNow[a]=c}
+  hist.push(null);setStage(stage<4?stage:4);renderAll();
+}
+
+// ---------- story ----------
+const STAGES=[
+ ['Crowd','Everyone',()=>`Each dot is one person. This patch is ${Math.round(W)} m × ${Math.round(Hm)} m of the mela at ${dEff.toFixed(dEff<.1?3:2)} people/m², so ${fmt(N)} dots.${W>p.w+1?` The patch was enlarged from ${p.w} m so that it holds enough app phones to be meaningful at this adoption.`:''}`],
+ ['Wristbands','Who wears one',()=>`Orange dots are elderly and pale dots other dependents wearing a wristband: ${fmt(nB)} of ${fmt(N)} (${pct(nB/N)}). Only they matter for the rest of the story.`],
+ ['App phones','Who can listen',()=>`Green dots are phones that carry the app and are actually scanning: ${fmt(nP)} (${pctS(p.q)} of people) = smartphone ${pct(p.carry)} × Android ${pct(p.andr)} × installed ${pctS(p.inst)} × scanning ${pct(p.act)}. They are random people in the crowd, because a lost dependent is among strangers.`],
+ ['Hearing','Who is in range',()=>`The blue disc is the median reach of the selected wristband (${P.cache.r.toFixed(1)} m, the same at every density). Phones inside are ringed. Signal strength varies from phone to phone, so some farther phones also hear it. ${fmt(Array.from(rangeNow).filter(x=>x>0).length)} of ${fmt(nB)} bands (${pct(Array.from(rangeNow).filter(x=>x>0).length/nB)}) have an app phone within median range right now.`],
+ ['Over time','The crowd moves',()=>`Press Run time. Every 10 s the crowd shifts, each band looks for a phone that can hear it, and a phone that catches the signal with a GPS fix tries an upload. White glow = first position reached the server. Blue = heard by a phone but not yet uploaded. Red = nobody has heard it yet.`],
+];
+let stage=0,running=false,clock=0,last=performance.now(),acc=0;
+STAGES.forEach(([t,sub],i)=>{const b=document.createElement('button');b.innerHTML=`<b>STEP ${i+1}</b><span>${t}</span>`;b.title=sub;b.onclick=()=>setStage(i);$('stages').appendChild(b)});
+function setStage(i){stage=Math.max(0,Math.min(4,i));
+  [...$('stages').children].forEach((b,k)=>b.className=k===stage?'on':'');
+  $('stTitle').textContent=`Step ${stage+1}: ${STAGES[stage][0]}`;$('stText').textContent=STAGES[stage][2]();
+  $('prev').disabled=stage===0;$('next').disabled=stage===4;renderLegend()}
+$('prev').onclick=()=>setStage(stage-1);$('next').onclick=()=>setStage(stage+1);
+$('run').onclick=()=>{if(round>=nRounds){resetRun()}running=!running;if(running)setStage(4);$('run').textContent=running?'⏸ Pause':(round>0&&round<nRounds?'▶ Resume':'▶ Run time')};
+function resetRun(){round=0;curve=[];located.fill(0);locRound.fill(0);heardEver.fill(0);buildGrid(P.cache.Rq)}
+$('again').onclick=()=>{manyToken++;busy=false;$('many').textContent=`Run ${MANY} crowds`;running=false;$('run').textContent='▶ Run time';setupWorld();finalize();setStage(stage)};
+$('many').onclick=()=>{running=false;$('run').textContent='▶ Run time';if(!busy)many()};
+addEventListener('keydown',e=>{if(e.key==='ArrowRight')setStage(stage+1);if(e.key==='ArrowLeft')setStage(stage-1)});
+function renderLegend(){
+  const L=[['#8a7f73','Person'],['#EC9533','Elderly wristband'],['#F9CE97','Other dependent wristband'],['#FFF3E0','Phone running the app']];
+  if(stage>=4)L.push(['#F5AE5C','Heard, not yet uploaded'],['#E5533C','Nobody has heard it yet'],['#ffffff','First position reached the server']);
+  $('legend').innerHTML=L.map(([c,t])=>`<span><i style="background:${c}${c==='#ffffff'?';box-shadow:0 0 6px #FFF3E0':''}"></i>${t}</span>`).join('');
+}
+
+// ---------- many crowds ----------
+let manyToken=0,busy=false;
+async function many(){
+  const my=++manyToken,curves=[];busy=true;const btn=$('many');
+  for(let k=0;k<MANY;k++){
+    btn.textContent=`Running ${k+1}/${MANY}…`;await new Promise(r=>setTimeout(r,30));
+    if(my!==manyToken){busy=false;btn.textContent=`Run ${MANY} crowds`;return}
+    curves.push(runHeadless());
+  }
+  busy=false;btn.textContent=`Run ${MANY} crowds`;
+  finalizeAfterMany(curves);
+}
+function finalizeAfterMany(curves){
+  avgCurves=curves;const nR=curves[0].length;
+  const avg=curves.map?curves[0].map((_,t)=>curves.reduce((s,c)=>s+c[t],0)/curves.length):[];
+  hist=curves.map(c=>c[c.length-1]);
+  curve=curves[curves.length-1].slice();round=nRounds;
+  let best=1e18;for(let a=0;a<nB;a++){const d=(X[ws[a]]-W/2)**2+(Y[ws[a]]-Hm/2)**2;if(d<best){best=d;sel=a}}pin=null;hover=null;
+  setStage(4);renderAll();
+  $('cAvg').textContent=pct(avg[nR-1]);$('cAvgN').textContent=`${curves.length} random crowds, at ${Math.round(p.T)} min`;
+}
+
+// ---------- charts and stats ----------
+const TW=760,TH2=260,tc=hd($('cTime'),TW,TH2),M={l:48,r:16,t:14,b:40};
+const tX=m=>M.l+m/p.T*(TW-M.l-M.r),tY=v=>TH2-M.b-v*(TH2-M.t-M.b);
+function drawTime(){
+  const x=tc,line=cv('--line'),mut=cv('--mut'),good=cv('--good'),ac=cv('--ac'),tx=cv('--tx');
+  x.clearRect(0,0,TW,TH2);x.font="12px 'Atkinson Hyperlegible',system-ui";x.lineWidth=1;x.strokeStyle=line;x.fillStyle=mut;
+  const step=p.T<=10?2:p.T<=30?5:p.T<=60?10:p.T<=120?15:30;
+  for(let m=0;m<=p.T+.01;m+=step){x.beginPath();x.moveTo(tX(m),M.t);x.lineTo(tX(m),TH2-M.b);x.stroke();x.fillText(m,tX(m)-6,TH2-M.b+14)}
+  [0,.25,.5,.75,1].forEach(v=>{x.beginPath();x.moveTo(M.l,tY(v));x.lineTo(TW-M.r,tY(v));x.stroke();x.fillText(v*100+'%',M.l-34,tY(v)+4)});
+  x.setLineDash([5,4]);x.strokeStyle=good;x.lineWidth=1.5;x.beginPath();x.moveTo(M.l,tY(GOAL));x.lineTo(TW-M.r,tY(GOAL));x.stroke();x.fillStyle=good;x.fillText('99% goal',M.l+6,tY(GOAL)-5);
+  if(GOAL_MIN<=p.T){x.beginPath();x.moveTo(tX(GOAL_MIN),M.t);x.lineTo(tX(GOAL_MIN),TH2-M.b);x.stroke();x.fillText('90 min',tX(GOAL_MIN)+5,M.t+24)}x.lineWidth=1;
+  x.strokeStyle=mut;x.beginPath();x.moveTo(M.l,tY(p.band));x.lineTo(TW-M.r,tY(p.band));x.stroke();x.fillStyle=mut;x.fillText('ceiling '+pct(p.band),TW-M.r-86,tY(p.band)-5);
+  // closed-form curve
+  x.strokeStyle=tx;x.globalAlpha=.55;x.beginPath();
+  for(let k=0;k<=60;k++){const m=p.T*k/60,v=m<=0?0:analytic(dEff,Math.max(1,Math.round(m*60/ROUND)),p);k?x.lineTo(tX(m),tY(v)):x.moveTo(tX(m),tY(v))}x.stroke();x.globalAlpha=1;x.setLineDash([]);
+  // spread over many crowds
+  if(avgCurves&&avgCurves.length>1){const nR=avgCurves[0].length;x.fillStyle=cv('--o4');x.globalAlpha=.22;x.beginPath();
+    const lo=[],hi=[];for(let t=0;t<nR;t++){const vs=avgCurves.map(c=>c[t]).sort((a,b)=>a-b);lo.push(vs[Math.floor(vs.length*.1)]);hi.push(vs[Math.ceil(vs.length*.9)-1])}
+    for(let t=0;t<nR;t++){const m=(t+1)*ROUND/60;t?x.lineTo(tX(m),tY(hi[t])):x.moveTo(tX(m),tY(hi[t]))}
+    for(let t=nR-1;t>=0;t--)x.lineTo(tX((t+1)*ROUND/60),tY(lo[t]));x.closePath();x.fill();x.globalAlpha=1}
+  // this crowd
+  x.strokeStyle=cv('--o4');x.lineWidth=3;x.lineJoin='round';x.beginPath();x.moveTo(tX(0),tY(0));
+  curve.forEach((v,t)=>x.lineTo(tX((t+1)*ROUND/60),tY(v)));x.stroke();
+  x.fillStyle=mut;x.font="13px 'Atkinson Hyperlegible',system-ui";x.fillText('Minutes since the dependent was flagged missing',M.l+(TW-M.l-M.r)/2-120,TH2-6);
+  x.save();x.translate(12,TH2/2+70);x.rotate(-Math.PI/2);x.fillText('Flagged bands with a first sighting',0,0);x.restore();
+}
+$('cTime').onmousemove=e=>{const r=e.target.getBoundingClientRect(),px=(e.clientX-r.left)/r.width*TW,m=Math.max(0,Math.min(p.T,(px-M.l)/(TW-M.l-M.r)*p.T)),t=Math.min(curve.length,Math.round(m*60/ROUND));
+  $('cTimeRead').textContent=`After ${m.toFixed(1)} min: closed-form ${pct(m<=0?0:analytic(dEff,Math.max(1,Math.round(m*60/ROUND)),p))}`+(t>0&&curve[t-1]!=null?`, this crowd ${pct(curve[t-1])}.`:'.')};
+$('cTime').onmouseleave=()=>$('cTimeRead').textContent='';
+const ROWS=[
+ ['People in this patch',()=>[N,1,`${Math.round(W)} × ${Math.round(Hm)} m at ${dEff.toFixed(dEff<.1?3:2)} people/m²`],'#8a7f73'],
+ ['Wear a wristband',()=>[nB,nB/N,`Elderly ${pct(p.eld)} + children ${pct(p.kid)}. Share of all people.`],'#EC9533'],
+ ['Active app phones',()=>[nP,nP/N,`Smartphone × Android × installed × scanning = ${pctS(p.q)} of people.`],'#FFF3E0'],
+ ['Bands a phone has ever been able to hear',()=>{const n=heardEver.reduce((a,b)=>a+b,0);return[n,n/nB,'A phone was within hearing distance at some round. Share of wristbands.']},'#F5AE5C'],
+ ['Bands located (position uploaded)',()=>{const n=located.reduce((a,b)=>a+b,0);return[n,n/nB,`First successful upload so far. Ceiling ${pct(p.band)}. Share of wristbands.`]},'#2B1600'],
+];
+$('fn').innerHTML=ROWS.map(([t,,c])=>`<li><div class="hd"><span>${t}</span><b></b></div><div class="tr"><i style="background:${c}"></i></div><p></p></li>`).join('');
+function renderFunnel(){
+  const rows=$('fn').children;
+  ROWS.forEach(([,fn],k)=>{const[n,sh,note]=fn(),li=rows[k];li.querySelector('b').innerHTML=`${fmt(n)}<em>${k?pct(sh):''}</em>`;li.querySelector('i').style.width=Math.max(1,sh*100)+'%';li.querySelector('p').textContent=note});
+}
+function renderStats(){
+  const nl=located.reduce((a,b)=>a+b,0),f=nl/nB,t=round*ROUND/60;
+  $('cThisL').textContent=round?`This crowd: located after ${t<1?Math.round(t*60)+' s':t.toFixed(t<10?1:0)+' min'}`:'This crowd: located so far';
+  $('cThis').textContent=round?pct(f):'-';$('cThisN').textContent=`${fmt(nl)} of ${fmt(nB)} wristbands`;
+  const nr=Math.max(1,round||nRounds);$('cModel').textContent=pct(analytic(dEff,nr,p));
+  $('cModelN').textContent=`Closed-form estimate at ${round?(t<1?Math.round(t*60)+' s':t.toFixed(t<10?1:0)+' min'):Math.round(p.T)+' min'}`;
+}
+function renderSel(){
+  const a=sel,k=located[a]?locRound[a]:0;
+  $('sIn').textContent=heardEver[a]?'yes':'none yet';$('sNow').textContent=rangeNow[a];
+  $('sLoc').textContent=k?mmss(k*ROUND):(round?'not yet':'-');
+  const out=located[a]?'Located':!round?'-':heardEver[a]?'Heard, not uploaded':'Not heard';
+  $('sOut').textContent=out;$('sOut').style.color=out==='Located'?'var(--good)':out==='Heard, not uploaded'?'var(--ac)':out==='Not heard'?'var(--bad)':'var(--tx)';
+  $('selWhy').textContent=`${role[ws[a]]===1?'Elderly':'Other dependent'} wristband. `+(!located[a]?(round?(heardEver[a]?`A phone has been in range, but no upload has gotten through yet.`:`No app phone has come within hearing distance yet. Median reach is ${P.cache.r.toFixed(1)} m.`):`Median reach is ${P.cache.r.toFixed(1)} m; ${rangeNow[a]} app phone${rangeNow[a]===1?' is':'s are'} inside it now.`):`First position reached the server after ${mmss(k*ROUND)}.`);
+}
+const t99=c=>{const i=c.findIndex(v=>v>=GOAL);return i<0?Infinity:(i+1)*ROUND/60};
+const tmin=m=>isFinite(m)?(m<10?m.toFixed(1):Math.round(m))+' min':'not reached';
+function modelT99(){for(let m=1;m<=720;m++){if(analytic(dEff,Math.max(1,Math.round(m*60/ROUND)),p)>=GOAL)return m}return Infinity}
+function renderGoal(){
+  const el=$('goalRes');let h;
+  const mt=modelT99(),sample=avgCurves&&avgCurves.length>1?avgCurves.map(t99).sort((a,b)=>a-b):null;
+  if(sample){const med=sample[Math.floor(sample.length/2)],worst=sample[sample.length-1],ok=worst<=GOAL_MIN;
+    h=`<span class="pill ${ok?'ok':'no'}">${ok?'Goal met':worst<=GOAL_MIN*1.2?'Close':'Goal not met'}</span><b>99% located at ${tmin(med)}</b>Median of ${sample.length} random crowds; slowest ${tmin(worst)}. The maths predicts ${tmin(mt)}.`}
+  else if(round>=nRounds||curve.length&&curve[curve.length-1]>=GOAL){const t=t99(curve),ok=t<=GOAL_MIN;
+    h=`<span class="pill ${ok?'ok':'no'}">${ok?'Goal met':'Goal not met'}</span><b>99% located at ${tmin(t)}</b>This crowd. The maths predicts ${tmin(mt)}. Press "Run ${MANY} crowds" for a steadier answer.`}
+  else h=`<span class="pill wait">Not run yet</span><b>The maths predicts 99% at ${tmin(mt)}</b>Press "Run time" to watch this crowd, or "Run ${MANY} crowds".`;
+  el.innerHTML=h}
+function renderAll(){drawTime();renderStats();renderFunnel();renderSel();renderGoal()}
+
+// ---------- drawing ----------
+const ctx=hd($('cv'),CW,CH);let s=1,rad=3;
+function dot(c,x,y,r){if(r<2)c.rect(x-r,y-r,2*r,2*r);else{c.moveTo(x+r,y);c.arc(x,y,r,0,6.2832)}}
+function batch(c,list,r,color){if(!list.length)return;c.fillStyle=color;c.beginPath();for(const i of list)dot(c,X[i]*s,Y[i]*s,r);c.fill()}
+function draw(){
+  const c=ctx;s=CW/W;rad=Math.max(.9,Math.min(7,s/Math.sqrt(dEff)*.33));c.clearRect(0,0,CW,CH);
+  $('cv').style.aspectRatio=CW+'/'+CH;
+  c.strokeStyle='rgba(255,255,255,.05)';c.lineWidth=1;c.beginPath();
+  for(let m=10;m<W;m+=10){c.moveTo(m*s,0);c.lineTo(m*s,CH)}for(let m=10;m<Hm;m+=10){c.moveTo(0,m*s);c.lineTo(CW,m*s)}c.stroke();
+  const L={plain:[],eld:[],kid:[],heard:[],unheard:[],loc:[]};
+  for(let i=nB+nP;i<N;i++)L.plain.push(i);
+  for(let a=0;a<nB;a++){const i=ws[a];
+    if(stage<1)L.plain.push(i);
+    else if(stage<4)(role[i]===1?L.eld:L.kid).push(i);
+    else if(located[a])L.loc.push(i);else if(heardEver[a])L.heard.push(i);else if(round)L.unheard.push(i);else (role[i]===1?L.eld:L.kid).push(i)}
+  c.globalAlpha=stage===0?1:.7;batch(c,L.plain,rad,'#8a7f73');c.globalAlpha=1;
+  const pg=[];for(let k=0;k<nP;k++)pg.push(ps[k]);
+  batch(c,pg,rad*1.1,stage<2?'#8a7f73':'#FFF3E0');
+  const wr=stage===0?rad:rad*1.35;
+  batch(c,L.eld,wr,'#EC9533');batch(c,L.kid,wr*.8,'#F9CE97');batch(c,L.heard,wr,'#F5AE5C');batch(c,L.unheard,wr,'#E5533C');
+  if(L.loc.length){batch(c,L.loc,wr*2.4,'rgba(255,243,224,.25)');batch(c,L.loc,wr,'#ffffff')}
+  const a=sel,i=ws[a],cx=X[i]*s,cy=Y[i]*s,R=P.cache.r*s;
+  if(stage>=3){
+    for(const ox of[-W,0,W])for(const oy of[-Hm,0,Hm]){const x=cx+ox*s,y=cy+oy*s;if(x+R<0||x-R>CW||y+R<0||y-R>CH)continue;
+      c.fillStyle='rgba(245,174,92,.12)';c.strokeStyle='rgba(245,174,92,.8)';c.lineWidth=1.5;c.beginPath();c.arc(x,y,R,0,6.2832);c.fill();c.stroke();
+      const ph=(clock*.6)%1;c.strokeStyle=`rgba(245,174,92,${(1-ph)*.6})`;c.beginPath();c.arc(x,y,R*ph,0,6.2832);c.stroke()}
+    eachNear(i,(j,d,dx,dy)=>{const x=cx+dx*s,y=cy+dy*s,reach=P.cache.r*Math.pow(10,SIG*gauss(i,j,seedZ+Math.floor(round*ROUND/30))/(10*NPL));
+      const hear=d<=reach;
+      if(stage===3||!hear){c.strokeStyle=hear?'#fff':'rgba(255,255,255,.3)';c.lineWidth=1.2;c.beginPath();c.arc(x,y,rad*1.1+2.5,0,6.2832);c.stroke()}
+      if(hear&&stage>=4){c.strokeStyle='rgba(255,243,224,.85)';c.lineWidth=1.2;c.beginPath();c.moveTo(cx,cy);c.lineTo(x,y);c.stroke()}})
+  }
+  c.strokeStyle='#fff';c.lineWidth=2;c.beginPath();c.arc(cx,cy,wr*1.9+1,0,6.2832);c.stroke();
+  c.fillStyle='#fff';c.font="13px 'Atkinson Hyperlegible',system-ui";c.fillRect(16,CH-22,10*s,3);c.fillText('10 m',16,CH-28);
+  if(stage>=4&&round){c.font="bold 14px 'Atkinson Hyperlegible',system-ui";c.fillText(`t = ${mmss(round*ROUND)} of ${Math.round(p.T)} min`,CW-170,CH-14)}
+}
+function frame(now){
+  const dt=Math.min(.1,(now-last)/1000);last=now;clock+=dt;
+  if(busy){requestAnimationFrame(frame);return}
+  if(running){acc+=dt*(+$('spd').value)*60/ROUND;let n=Math.floor(acc);acc-=n;const t0=performance.now();
+    while(n>0&&round<nRounds&&performance.now()-t0<14){stepRound();n--}
+    acc=Math.min(acc+n,40); // the slider can ask for more rounds than this device can do; carry a little, drop the rest
+    if(round>=nRounds){running=false;$('run').textContent='↺ Run again'}renderAll()}
+  draw();requestAnimationFrame(frame);
+}
+function nearest(e){const r=$('cv').getBoundingClientRect(),mx=(e.clientX-r.left)/r.width*CW,my=(e.clientY-r.top)/r.height*CH;
+  let b=-1,bd=(Math.max(14,rad*2.5))**2;for(let a=0;a<nB;a++){const i=ws[a],d=(X[i]*s-mx)**2+(Y[i]*s-my)**2;if(d<bd){bd=d;b=a}}return b}
+$('cv').onmousemove=e=>{const a=nearest(e);if(a>=0){hover=a;sel=a;renderSel()}else if(pin!==null){sel=pin;renderSel()}};
+$('cv').onmouseleave=()=>{hover=null;if(pin!==null){sel=pin;renderSel()}};
+$('cv').onclick=e=>{const a=nearest(e);if(a>=0){pin=a;sel=a;renderSel()}};
+
+// ---------- boot ----------
+let dirtyF=false;
+function dirty(){P();manyToken++;busy=false;$('many').textContent=`Run ${MANY} crowds`;if(dirtyF)return;dirtyF=true;requestAnimationFrame(()=>{dirtyF=false;running=false;$('run').textContent='▶ Run time';setupWorld();finalize()})}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(p)drawTime()});
+setupWorld();finalize();requestAnimationFrame(frame);
+</script>
+</body>
+</html>

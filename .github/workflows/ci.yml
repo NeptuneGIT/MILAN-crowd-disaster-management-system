@@ -1,0 +1,39 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  guardian-app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: guardian-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.35.5
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test
+
+  camp-software:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: camp-software
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: camp-software/package-lock.json
+      # --ignore-scripts skips the Electron binary download; typecheck, lint and tests don't need it.
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test

@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Regenerable with python train.py (seeded)
+*.joblib
