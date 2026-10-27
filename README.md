@@ -135,6 +135,18 @@ less pessimistic than the interactive simulator's current defaults.*
 
 <p align="center"><img src="simulations/sweep/min_range_p99.png" width="640" alt="Bluetooth range needed to locate 99% of bands within 90 minutes, by crowd density and install rate"></p>
 
+The time heatmaps show the minutes needed to locate 99% of bands (median of 20 crowds) by Bluetooth
+range and crowd density, one per install rate (0.25%, 0.5%, 1%, 2% and 5% of phones). The thick red
+line marks 90 minutes:
+
+<p align="center">
+<img src="simulations/sweep/time_heatmap_p99_i0.25.png" width="320" alt="Time to locate 99% of bands, 0.25% install">
+<img src="simulations/sweep/time_heatmap_p99_i0.5.png" width="320" alt="Time to locate 99% of bands, 0.5% install">
+<img src="simulations/sweep/time_heatmap_p99_i1.png" width="320" alt="Time to locate 99% of bands, 1% install">
+<img src="simulations/sweep/time_heatmap_p99_i2.png" width="320" alt="Time to locate 99% of bands, 2% install">
+<img src="simulations/sweep/time_heatmap_p99_i5.png" width="320" alt="Time to locate 99% of bands, 5% install">
+</p>
+
 ---
 
 ## Quick start (prebuilt)
