@@ -290,4 +290,4 @@ public by design, and all access control is enforced by row-level security.
 
 ## License
 
-[MIT](LICENSE) © 2026 Team Ashoka Architects
+[MIT](LICENSE) © 2026 Abhinnav Abbu & Aaryan Bahri
