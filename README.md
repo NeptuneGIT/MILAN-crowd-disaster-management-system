@@ -10,7 +10,8 @@ every day. MILAN turns the crowd's own phones into the search party:
 2. Ordinary attendees run the **MILAN guardian app** (Android). It listens quietly in the background,
    and it reports nothing unless a band belongs to someone who is **already marked missing**.
 3. When a phone hears a missing dependent, it uploads its GPS position and a summary of the Bluetooth
-   signal. An **ML model** turns that signal into a distance, so staff see an accurate "last seen" circle.
+   signal. A **machine-learning model** turns that signal into a distance with 90% confidence, so
+   staff see an accurate "last seen" circle instead of a guess.
 4. **Camp staff** watch a live board and map on the **MILAN camp software** (Windows desktop), send
    volunteers to the area, and mark the dependent found at a camp. The guardian's phone then shows
    which camp to go to.
@@ -25,7 +26,7 @@ followed or forged.
 ```
 guardian-app/    Flutter Android app for guardians and bystanders (scanner + "Your dependents" + camps)
 camp-software/   Electron + React desktop app for camp staff (missing board, map, mark missing/found)
-ml-model/        Signal-to-distance model: real field recordings, simulator, training, evaluation
+ml-model/        ML model: signal-to-distance, with real field recordings, simulator, training, evaluation
 simulations/     Crowd simulator showing the approach works at Kumbh scale, plus parameter sweeps and graphs
 supabase/        Postgres schema, row-level security, seed data, SQL tests (shared backend)
 firmware/        ESP32-C3 band firmware (Arduino sketch)
@@ -62,7 +63,7 @@ releases/        Ready-to-run builds: guardian APK and portable camp .exe
 | **Guardian app** | Flutter 3.35, Riverpod, flutter_blue_plus, geolocator, supabase_flutter | `guardian-app/lib/ble/scanner_service.dart` (always-on scanner), `lib/ble/advert_parser.dart`, `lib/data.dart`, `lib/ui/` |
 | **Backend** | Supabase (Postgres + Auth + RLS), pgcrypto for AES | `supabase/schema.sql`, `supabase/auth.sql` |
 | **Camp software** | Electron, React, TypeScript, react-leaflet + OpenStreetMap | `camp-software/src/main/db.ts`, `src/shared/mlDistanceModel.ts`, `src/renderer/src/` |
-| **ML model** | Python, scikit-learn (gradient-boosted quantile regression) | `ml-model/`, exported to `camp-software/src/shared/ml/` |
+| **ML model** | Python, scikit-learn (gradient-boosted quantile regression), run in TypeScript at runtime | `ml-model/`, exported to `camp-software/src/shared/ml/` |
 
 ### How each part works
 
@@ -90,8 +91,22 @@ also shows the nearest camp (haversine) and marks a row stale after 5 minutes. T
 marks a dependent missing or found at a chosen camp. The Supabase client lives only in Electron's main
 process; the renderer is sandboxed and gets a typed `window.camp` API.
 
-**ML model: signal strength to distance.** Bluetooth signal strength is a poor ruler in a crowd,
-because bodies absorb 2.4 GHz. Without a model, the system had to add a fixed 10 m to every circle.
+## The ML model: signal strength to distance
+
+The ML model is an integral part of MILAN, not an add-on. The bands, phones and backend find *that*
+a missing dependent was heard and *where the phone was*. The model answers the remaining question:
+*how far from that phone could the band be?* Every "last seen" circle that camp staff see is sized by
+its output.
+
+**Why it makes more precise predictions.** Bluetooth signal strength is a poor ruler in a crowd,
+because bodies absorb 2.4 GHz. A fixed rule, such as adding 10 m to every circle, can't tell a sparse
+crowd from a packed one, so it is too small in one and too large in the other. The model instead
+learns how signal behaves at different distances and crowd densities. It reads three features from
+each 10 s window (median RSSI, number of adverts heard, and RSSI interquartile range), and the
+spread and the advert count carry information about how much crowd sits in the way. It is also
+trained to give a distance the band is within 90% of the time, so the circle has a known confidence
+instead of being a guess.
+
 We could not put a real 3-people/m² crowd between a band and a phone at 20 m, so we
 **measured each ingredient of signal loss separately and simulated the rest**
 (full method: [docs/ml-method.md](docs/ml-method.md)):
@@ -115,9 +130,12 @@ Results on that real holdout ([ml-model/out/holdout_report.md](ml-model/out/hold
 | **ML d90 (shipped)** | **82.9%** | **8.56 m** | **0.283** | 16.0 m |
 
 The 69 exported trees run in TypeScript inside the camp software, with no Python at runtime. A parity
-test checks the TypeScript predictions against scikit-learn's.
+test checks the TypeScript predictions against scikit-learn's. To retrain or inspect the model, see
+[ml-model/README.md](ml-model/README.md).
 
-**Crowd simulation.** [`simulations/kumbh-sim.html`](simulations/kumbh-sim.html) is a self-contained
+## Crowd simulation
+
+[`simulations/kumbh-sim.html`](simulations/kumbh-sim.html) is a self-contained
 interactive model of a Kumbh crowd: people, dependents with bands, and the share of phones with the
 app installed and actually scanning. It also models GPS availability, upload success and crowd
 turnover. Open it in a browser and move the sliders. Every number that is an assumption rather than
