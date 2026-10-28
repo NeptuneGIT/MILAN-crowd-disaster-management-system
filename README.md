@@ -247,12 +247,12 @@ cd camp-software
 npm run demo            # opens the camp software and fakes a phone sighting every 4 s
 ```
 
-1. Sign in as `staff@demo.test`.
+1. Sign in as `staff@demo.test`. Password is '123456'
 2. Go to **All dependents** and mark a dependent **missing**. Phones report sightings only for missing
    dependents.
 3. Open the **Missing board**. Within seconds a last-seen circle appears, along with the nearest camp
    and a "GPS ±x m + BLE y m" breakdown. Each new sighting flashes its row.
-4. Mark the dependent **found** at a camp. On a phone signed in as `parent1@demo.test`, the guardian
+4. Mark the dependent **found** at a camp. On a phone signed in as `parent1@demo.test` (Password: 123456), the guardian
    app shows "Found at <camp>" with directions.
 
 `npm run fake-sighting` sends one sighting. It uses the same anon RPCs as a real phone, with realistic
